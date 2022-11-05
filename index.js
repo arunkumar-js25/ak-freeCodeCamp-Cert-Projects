@@ -23,7 +23,7 @@ app.get("/api/hello", function (req, res) {
   res.json({greeting: 'hello API'});
 });
 
-//Timestamp Microservice
+//Timestamp Microservice 
 app.get('/api/:date?', (req, res) => {
   console.log("GET > /api/:dateInput?" + req.params.date);
   var dateInput = req.params.date;
