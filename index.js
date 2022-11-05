@@ -45,29 +45,33 @@ let redirectUrl = ['https://forum.freecodecamp.org/'];
 app.post('/api/shorturl', (req, res) => {
   console.log("POST > /api/shorturl");
   let urlLink = req.body.url;
+  let urlLinkData = new URL(urlLink);
   let indexPos=0;
   let errFlag = false;
   //Check whether the url is valid or not
-  dns.lookup( urlLink, function(err, address, family){
+  dns.lookup( urlLinkData.hostname, function(err, address, family){
     console.log(err);
-    if(err){
+    if(err && err.code == "ENOTFOUND"){
       errFlag = true;
+      console.log(errFlag);
+    }
+
+    console.log(/^(http:..|https:..)/.test(urlLink));
+    if (errFlag || ! (/^(http:..|https:..)/.test(urlLink))) {
+      res.json({ error: 'invalid url' });
+    }
+    else
+    {
+      indexPos = redirectUrl.indexOf(urlLink);
+      console.log(indexPos);
+      if( indexPos == -1){
+        redirectUrl.push(urlLink);
+        indexPos = redirectUrl.length-1;
+      }
+    res.json({ original_url : urlLink, short_url : indexPos});
     }
   });
 
-  if (errFlag) {
-        res.json({ error: 'invalid url' });
-  }
-  else
-  {
-    indexPos = redirectUrl.indexOf(urlLink);
-    console.log(indexPos);
-    if( indexPos == -1){
-      redirectUrl.push(urlLink);
-      indexPos = redirectUrl.length-1;
-    }
-  res.json({ original_url : urlLink, short_url : indexPos});
-  }
 });
 
 app.get('/api/shorturl/:id', (req, res) => {
@@ -92,6 +96,13 @@ app.get('/api/:date?', (req, res) => {
   console.log("GET > /api/:dateInput?" + req.params.date);
   var dateInput = req.params.date;
   var dateOutput;
+
+  //Added due to conflict with other projects
+  if(dateInput == "shorturl")
+  {
+    return;
+  }
+  
   if(dateInput == undefined)
   {
     dateOutput = new Date();
