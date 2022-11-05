@@ -23,6 +23,14 @@ app.get("/api/hello", function (req, res) {
   res.json({greeting: 'hello API'});
 });
 
+//Request Header Parser Microservice
+app.get('/api/whoami', (req, res) => {
+  console.log("GET > /api/whoami");
+  res.json({"ipaddress":req.headers['x-forwarded-for'],
+            "language":req.headers['accept-language'],
+            "software":req.headers['user-agent']});
+});
+
 //Timestamp Microservice 
 app.get('/api/:date?', (req, res) => {
   console.log("GET > /api/:dateInput?" + req.params.date);
