@@ -18,10 +18,44 @@ app.get("/", function (req, res) {
   res.sendFile(__dirname + '/views/index.html');
 });
 
-
 // your first API endpoint... 
 app.get("/api/hello", function (req, res) {
   res.json({greeting: 'hello API'});
+});
+
+//Timestamp Microservice
+app.get('/api/:date?', (req, res) => {
+  console.log("GET > /api/:dateInput?" + req.params.date);
+  var dateInput = req.params.date;
+  var dateOutput;
+  if(dateInput == undefined)
+  {
+    dateOutput = new Date();
+  }
+  else if(/^\d+$/.test(dateInput))
+  {
+    dateOutput = new Date(Number(dateInput));
+
+  }
+  else
+  {
+     dateOutput = new Date(dateInput);
+  }
+  
+  console.log(dateOutput);
+  var utcDate = "";
+  var unixTimestamp = 0;
+  
+  if(dateOutput == "Invalid Date")
+  {
+     res.json({ error : "Invalid Date" });
+  }
+  else
+  {
+    var utcDate = dateOutput.toUTCString();
+    var unixTimestamp = dateOutput.getTime();
+    res.json({ unix: unixTimestamp, utc: utcDate });
+  }
 });
 
 
