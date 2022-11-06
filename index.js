@@ -24,6 +24,8 @@ app.use(express.static('public'));
 app.use('/api/shorturl',bodyParser.urlencoded({extended: false})); 
 app.use('/api/users',bodyParser.urlencoded({extended: false})); 
 app.use('/api/users/:_id/exercises',bodyParser.urlencoded({extended: false}));
+app.use('/api/users/:_id/logs',bodyParser.urlencoded({extended: false}));
+app.use('/api/fileanalyse',bodyParser.urlencoded({extended: false}));
 
 // http://expressjs.com/en/starter/basic-routing.html
 app.get("/", function (req, res) {
@@ -33,6 +35,37 @@ app.get("/", function (req, res) {
 // your first API endpoint... 
 app.get("/api/hello", function (req, res) {https://ak-freeCodehttps://ak-freeCodeCamp-Cert-Projects.arunkumar-js25.repl.coCamp-Cert-Projects.arunkumar-js25.repl.co
   res.json({greeting: 'hello API'});
+});
+
+//File Metadata Microservice
+  // Creating a Schema for uploaded files
+  const fileSchema = new mongoose.Schema({
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    name: {
+      type: String,
+      required: [true, "Uploaded file must have a name"],
+    },
+  });
+  
+  // Creating a Model from that Schema
+  const File = mongoose.model("File", fileSchema);
+  
+  //Configuration for Multer
+  const multer = require("multer");
+  const upload = multer({ dest: "public/files" });
+
+app.post('/api/fileanalyse', upload.single("upfile"),(req, res) => {
+  console.log("POST > /api/fileanalyse");
+  console.log({"name":req.file.originalname,
+            "type":req.file.mimetype,
+            "size":req.file.size});
+  
+  res.json({"name":req.file.originalname,
+            "type":req.file.mimetype,
+            "size":req.file.size});
 });
 
 //Request Header Parser Microservice
@@ -140,30 +173,41 @@ app.get('/api/users/:_id/logs', (req, res) => {
   console.log(req.method + " > "+ req.path);
   console.log(req.params);
   console.log(req.query);
-
-  let filterCondition = {};
-  let limitCondition = {}
-  if(req.query.from != undefined)
-  {
-    filterCondition.$gte = new Date(req.query.from).toDateString();
-  }
-  if(req.query.to != undefined)
-  {
-    filterCondition.$lte = new Date(req.query.to).toDateString();
-  }
-
-  if(req.query.limit != undefined)
-  {
-    limitCondition.limit = Number(req.query.limit);
-  }
-
-  console.log(filterCondition);
-  console.log(limitCondition);
-user.find({_id: userId, date: filterCondition},limitCondition).select().exec(
-  function(err, data) {
+  
+  user.findById(userId, function(err, data) {
     if (err) return console.error(err);
-    console.log(data);
-    res.json(data[0]);
+
+    console.log(data.log);
+    let newlog = [];
+    let counter = 0;
+    
+    for(let i=0;i<data.count;i++){
+      let dateX = (new Date(data.log[i].date));
+      let checkFlag = true;
+      if(req.query.from != undefined && dateX < (new Date(req.query.from)))
+      {
+        checkFlag = false;
+      }
+      if(checkFlag && req.query.to != undefined && dateX > (new Date(req.query.to)))
+      {
+         checkFlag = false;
+      }
+
+      newlog.push(data.log[i]);
+      counter++;
+    
+      if(checkFlag && req.query.limit != undefined && counter >= req.query.limit)
+      {
+        break;
+      }
+    }
+        
+    res.json({
+      username: data.username,
+      count: data.count,
+      _id: userId,
+      log: newlog
+    });
   });
 });
 
@@ -222,15 +266,19 @@ app.get('/api/shorturl/:id', (req, res) => {
 
 //Timestamp Microservice 
 app.get('/api/:date?', (req, res) => {
-  console.log("GET > /api/:dateInput?" + req.params.date);
+
   var dateInput = req.params.date;
   var dateOutput;
-
+  
   //Added due to conflict with other projects
-  if(dateInput == "shorturl" || dateInput == "users")
+  if(dateInput == "shorturl" 
+     || dateInput == "users"
+    || dateInput == "fileanalyse")
   {
     return;
   }
+  
+  console.log("GET > /api/:dateInput?" + req.params.date);
   
   if(dateInput == undefined)
   {
