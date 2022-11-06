@@ -55,18 +55,67 @@ app.get("/api/hello", function (req, res) {https://ak-freeCodehttps://ak-freeCod
   
   //Configuration for Multer
   const multer = require("multer");
-  const upload = multer({ dest: "public/files" });
+  //const upload = multer({ dest: "public/files" }); //Encoded File
 
-app.post('/api/fileanalyse', upload.single("upfile"),(req, res) => {
+  //Calling the "multer" Function //Readable File Creation
+    //Configuration for Multer
+    const multerStorage = multer.diskStorage({
+      destination: (req, file, cb) => {
+        cb(null, "public");
+      },
+      filename: (req, file, cb) => {
+        const ext = file.mimetype.split("/")[1];
+        cb(null, `files/admin-${file.fieldname}-${Date.now()}.${ext}`);
+      },
+    });
+
+    // Multer Filter
+    const multerFilter = (req, file, cb) => {
+      if (file.mimetype.split("/")[1] === "pdf") {
+        cb(null, true);
+      } else {
+        cb(new Error("Not a PDF File!!"), false);
+      }
+    };
+
+  const upload = multer({
+    storage: multerStorage
+    //,fileFilter: multerFilter,  //For Me, i dont need any filter for files
+  });
+
+app.post('/api/fileanalyse', upload.single("upfile"), async (req, res) => {
   console.log("POST > /api/fileanalyse");
-  console.log({"name":req.file.originalname,
+  console.log({"name":req.file.originalname});
+
+  try {
+    const newFile = await File.create({
+      name: req.file.filename,
+    });
+    res.status(200).json({"name":req.file.originalname,
             "type":req.file.mimetype,
             "size":req.file.size});
-  
-  res.json({"name":req.file.originalname,
-            "type":req.file.mimetype,
-            "size":req.file.size});
+  } catch (error) {
+    res.json({
+      error,
+    });
+  }
 });
+
+app.get("/api/getFiles", async (req, res) => {
+  try {
+    const files = await File.find();
+    res.status(200).json({
+      status: "success",
+      files,
+    });
+  } catch (error) {
+    res.json({
+      status: "Fail",
+      error,
+    });
+  }
+});
+
 
 //Request Header Parser Microservice
 app.get('/api/whoami', (req, res) => {
