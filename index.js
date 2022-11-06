@@ -6,7 +6,7 @@ require('dotenv').config();
 var express = require('express');
 var app = express();
 
-// Accessing dns module
+// Accessing dns module 
 const dns = require('dns');
 //Accessing MongoDB
 let mongoose = require('mongoose');
