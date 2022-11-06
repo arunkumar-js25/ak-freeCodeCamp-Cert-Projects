@@ -10,6 +10,8 @@ var app = express();
 const dns = require('dns');
 //Accessing MongoDB
 let mongoose = require('mongoose');
+//Connect MongoDB
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 //Body Parser
 let bodyParser = require('body-parser');
 
@@ -37,7 +39,7 @@ app.get("/api/hello", function (req, res) {https://ak-freeCodehttps://ak-freeCod
   res.json({greeting: 'hello API'});
 });
 
-//File Metadata Microservice
+/******************* File Metadata Microservice (5) **********************/
   // Creating a Schema for uploaded files
   const fileSchema = new mongoose.Schema({
     createdAt: {
@@ -116,8 +118,7 @@ app.get("/api/getFiles", async (req, res) => {
   }
 });
 
-
-//Request Header Parser Microservice
+/************** Request Header Parser Microservice (2) ******************/
 app.get('/api/whoami', (req, res) => {
   console.log("GET > /api/whoami");
   res.json({"ipaddress":req.headers['x-forwarded-for'],
@@ -125,8 +126,8 @@ app.get('/api/whoami', (req, res) => {
             "software":req.headers['user-agent']});
 });
 
-//Connect MongoDB
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+
+/*********************** Exercise Tracker (4) **************************/
 
 const userSchema = new mongoose.Schema({
     username : {
@@ -140,6 +141,7 @@ const userSchema = new mongoose.Schema({
       {
         description : String,
         duration : Number,
+        dateInput: String,
         date: String
       }
     ]
@@ -190,11 +192,24 @@ app.get('/api/users', (req, res) => {
 app.post('/api/users/:_id/exercises', (req, res) => {
   let userId = req.params._id;
   console.log("POST > /api/users/"+userId+"/exercises");
+
+  //dateValidation
+  let dateOp ;
+  if(req.body.date != undefined 
+     && req.body.date != '' 
+     &&  (/^\d{4}-\d{2}-\d{2}$/.test(req.body.date)))
+     {
+        dateOp = new Date(req.body.date).toDateString();
+     }
+  else{
+    dateOp = new Date().toDateString();
+  }
   
   let exerciseDetail = {
     description: req.body.description,
     duration: req.body.duration == '' ? 0 : Number(req.body.duration),
-    date: req.body.date == '' ? new Date().toDateString() : new Date(req.body.date).toDateString()
+    dateInput: req.body.date,
+    date: dateOp
   };
   console.log(exerciseDetail);
   user.findById(userId,
@@ -224,45 +239,58 @@ app.get('/api/users/:_id/logs', (req, res) => {
   console.log(req.query);
   
   user.findById(userId, function(err, data) {
-    if (err) return console.error(err);
+    if (err && err.code == "ENOTFOUND") return console.error(err);
 
     console.log(data.log);
     let newlog = [];
     let counter = 0;
+
+    let returnData = {
+      username: data.username,
+      count: data.count,
+      _id: userId
+    };
     
     for(let i=0;i<data.count;i++){
       let dateX = (new Date(data.log[i].date));
       let checkFlag = true;
-      if(req.query.from != undefined && dateX < (new Date(req.query.from)))
+      if(req.query.from != undefined)
       {
-        checkFlag = false;
+        returnData.from = (new Date(req.query.from)).toDateString();
+        if(dateX < (new Date(req.query.from)))
+        {
+          checkFlag = false;
+          
+        }
       }
-      if(checkFlag && req.query.to != undefined && dateX > (new Date(req.query.to)))
+      if(req.query.to != undefined)
       {
-         checkFlag = false;
+        returnData.to = (new Date(req.query.to)).toDateString();
+        if(checkFlag && dateX > (new Date(req.query.to)))
+        {
+           checkFlag = false;
+        }
       }
 
-      newlog.push(data.log[i]);
-      counter++;
-    
-      if(checkFlag && req.query.limit != undefined && counter >= req.query.limit)
+      if(checkFlag)
+      {
+        newlog.push(data.log[i]);
+        counter++;
+      }
+      
+      if(req.query.limit != undefined && counter >= req.query.limit)
       {
         break;
       }
-    }
-        
-    res.json({
-      username: data.username,
-      count: data.count,
-      _id: userId,
-      log: newlog
-    });
+    } 
+    returnData.log = newlog ;
+    res.json(returnData);
   });
 });
 
 
 
-//URL Shortener Microservice
+/********************** URL Shortener Microservice (3) **************************/
 let redirectUrl = ['https://forum.freecodecamp.org/'];
 app.post('/api/shorturl', (req, res) => {
   console.log("POST > /api/shorturl");
@@ -278,7 +306,7 @@ app.post('/api/shorturl', (req, res) => {
       console.log(errFlag);
     }
 
-    console.log(/^(http:..|https:..)/.test(urlLink));
+    //console.log(/^(http:..|https:..)/.test(urlLink));
     if (errFlag || ! (/^(http:..|https:..)/.test(urlLink))) {
       res.json({ error: 'invalid url' });
     }
@@ -313,9 +341,9 @@ app.get('/api/shorturl/:id', (req, res) => {
   }
 });
 
-//Timestamp Microservice 
-app.get('/api/:date?', (req, res) => {
 
+/************************** Timestamp Microservice (1) ******************************/
+app.get('/api/:date?', (req, res) => {
   var dateInput = req.params.date;
   var dateOutput;
   
@@ -328,7 +356,6 @@ app.get('/api/:date?', (req, res) => {
   }
   
   console.log("GET > /api/:dateInput?" + req.params.date);
-  
   if(dateInput == undefined)
   {
     dateOutput = new Date();
@@ -336,13 +363,12 @@ app.get('/api/:date?', (req, res) => {
   else if(/^\d+$/.test(dateInput))
   {
     dateOutput = new Date(Number(dateInput));
-
   }
   else
   {
      dateOutput = new Date(dateInput);
   }
-  
+
   console.log(dateOutput);
   var utcDate = "";
   var unixTimestamp = 0;
@@ -358,8 +384,6 @@ app.get('/api/:date?', (req, res) => {
     res.json({ unix: unixTimestamp, utc: utcDate });
   }
 });
-
-
 
 // listen for requests :)
 var listener = app.listen(process.env.PORT, function () {
